@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Menu</title>
+  <style>
+    :root {
+      --bg1:#667eea; --bg2:#764ba2;
+      --card:#ffffff; --text:#111213; --muted:#666a70;
+      --radius:16px; --gap:16px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,sans-serif;
+      background:linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:#fff;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .container{min-height:100dvh;display:grid;place-items:center;padding:32px}
+    .shell{width:100%;max-width:960px}
+    h1{margin:0 0 8px;font-size:clamp(24px,4vw,36px);text-align:center}
+    .subtitle{text-align:center;opacity:.9;margin-bottom:24px;font-size:14px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media (max-width:640px){.grid{grid-template-columns:1fr}}
+    .card{
+      background:var(--card); color:var(--text);
+      border-radius:16px; padding:20px; text-decoration:none;
+      display:flex; align-items:center; justify-content:center; gap:12px;
+      min-height:64px; box-shadow:0 8px 24px rgba(0,0,0,.18);
+      transition:transform .2s ease, box-shadow .2s ease; touch-action:manipulation;
+    }
+    .card:active{transform:translateY(2px)}
+    .emoji{font-size:28px}
+    .label{font-size:16px;font-weight:600;letter-spacing:.2px}
+
+    .panel{display:none;background:#fff;color:#111;border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+    .panel.active{display:block}
+    .toolbar{
+      position:sticky; top:0; z-index:5;
+      background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,255,255,.92));
+      padding:8px; border-radius:12px; display:flex; align-items:center; gap:8px; backdrop-filter:blur(8px);
+    }
+    .back{
+      border:0; background:var(--bg1); color:#fff; padding:12px 16px; border-radius:12px;
+      font-size:14px; min-height:44px; cursor:pointer; touch-action:manipulation;
+    }
+    .title{margin-left:4px;font-weight:700;font-size:16px;color:#222}
+    .images{display:grid;gap:12px;padding:8px 4px 12px}
+    .img-wrap{border-radius:12px;overflow:hidden;background:#f3f4f6;box-shadow:0 6px 16px rgba(0,0,0,.12)}
+    .menu-image{width:100%;height:auto;display:block;object-fit:contain}
+    footer{text-align:center;font-size:12px;opacity:.8;margin-top:10px;color:#e7e7ea}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section id="home" class="shell">
+      <h1>Menu</h1>
+      <p class="subtitle">Choose a section</p>
+      <div class="grid">
+        <a class="card" href="#food" onclick="openPanel('food');return false;">
+          <span class="emoji">🍽️</span><span class="label">Food</span>
+        </a>
+        <a class="card" href="#drinks" onclick="openPanel('drinks');return false;">
+          <span class="emoji">🍹</span><span class="label">Drinks</span>
+        </a>
+      </div>
+      <footer>Optimized for mobile</footer>
+    </section>
+
+    <section id="foodPanel" class="panel shell" aria-label="Food menu">
+      <div class="toolbar">
+        <button class="back" onclick="goHome()">← Back</button>
+        <div class="title">Food</div>
+      </div>
+      <div id="foodImages" class="images"></div>
+    </section>
+
+    <section id="drinksPanel" class="panel shell" aria-label="Drinks menu">
+      <div class="toolbar">
+        <button class="back" onclick="goHome()">← Back</button>
+        <div class="title">Drinks</div>
+      </div>
+      <div id="drinksImages" class="images"></div>
+    </section>
+  </main>
+
+  <script>
+    // Configure folders, extension, and maximum number of pages to probe.
+    const CONFIG = {
+      ext: 'jpg',
+      sections: {
+        food:   { folder: 'Food',   max: 50 },
+        drinks: { folder: 'Drinks', max: 50 }
+      }
+    };
+
+    const home = document.getElementById('home');
+    const panels = {
+      food: document.getElementById('foodPanel'),
+      drinks: document.getElementById('drinksPanel')
+    };
+    const containers = {
+      food: document.getElementById('foodImages'),
+      drinks: document.getElementById('drinksImages')
+    };
+
+    function openPanel(which){
+      home.style.display = 'none';
+      panels.food.classList.remove('active');
+      panels.drinks.classList.remove('active');
+      panels[which].classList.add('active');
+      history.replaceState(null,'','#'+which);
+      window.scrollTo({top:0});
+      // Lazy build images the first time a panel opens
+      if (!containers[which].dataset.built) {
+        buildImages(which);
+      }
+    }
+
+    function goHome(){
+      panels.food.classList.remove('active');
+      panels.drinks.classList.remove('active');
+      home.style.display = '';
+      history.replaceState(null,'','#');
+      window.scrollTo({top:0});
+    }
+
+    async function exists(url){
+      try{
+        const res = await fetch(url, { method: 'HEAD', cache: 'no-cache' });
+        return res.ok;
+      }catch(e){
+        return false;
+      }
+    }
+
+    async function buildImages(which){
+      const { folder, max } = CONFIG.sections[which];
+      const ext = CONFIG.ext;
+      const box = containers[which];
+      const toPad = 2; // Use 01, 02, 03 ...
+      let foundAny = false;
+      for (let i=1; i<=max; i++){
+        const name = String(i).padStart(toPad,'0');
+        const url = `${folder}/${name}.${ext}`;
+        if (await exists(url)){
+          foundAny = true;
+          const wrap = document.createElement('div');
+          wrap.className = 'img-wrap';
+          const img = document.createElement('img');
+          img.className = 'menu-image';
+          img.loading = 'lazy';
+          img.decoding = 'async';
+          img.alt = `${which} menu page ${i}`;
+          img.src = url;
+          wrap.appendChild(img);
+          box.appendChild(wrap);
+        }
+      }
+      box.dataset.built = '1';
+      if (!foundAny){
+        const p = document.createElement('p');
+        p.textContent = 'No images found in ' + folder + ' folder.';
+        box.appendChild(p);
+      }
+    }
+
+    // Deep-link support
+    const hash = location.hash.replace('#','');
+    if (hash === 'food' || hash === 'drinks') openPanel(hash);
+  </script>
+</body>
+</html>
